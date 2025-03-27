@@ -62,6 +62,9 @@ namespace Packages.rapier4unity.Runtime
 			float rotation_w);
 
 		[DllImport(DllName, CallingConvention = Convention)]
+		public static extern void set_rigid_body_type(RigidBodyHandle rigidBodyHandle, RigidBodyType rigidBodyType);
+
+		[DllImport(DllName, CallingConvention = Convention)]
 		public static extern RapierTransform get_transform(RigidBodyHandle rigidBodyHandle);
 
 		[DllImport(DllName, CallingConvention = Convention)]

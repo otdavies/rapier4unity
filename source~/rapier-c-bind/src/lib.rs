@@ -215,6 +215,13 @@ extern "C" fn add_rigid_body(collider: SerializableColliderHandle, rb_type: Seri
 }
 
 #[unsafe(no_mangle)]
+extern "C" fn set_rigid_body_type(rb_handle: SerializableRigidBodyHandle, rb_type: SerializableRigidBodyType) {
+    let psd = get_mutable_physics_solver();
+    let rb = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
+    rb.set_body_type(rb_type.into(), true);
+}
+
+#[unsafe(no_mangle)]
 extern "C" fn get_transform(rb_handle: SerializableRigidBodyHandle) -> RapierTransform {
     let psd = get_mutable_physics_solver();
     let rb = psd.rigid_body_set.get(rb_handle.into()).unwrap();
@@ -226,52 +233,70 @@ extern "C" fn get_transform(rb_handle: SerializableRigidBodyHandle) -> RapierTra
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn set_transform_position(rb_handle: SerializableRigidBodyHandle, position_x:f32, position_y:f32, position_z:f32) {
+extern "C" fn set_transform_position(rb_handle: SerializableRigidBodyHandle, position_x: f32, position_y: f32, position_z: f32) {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
-    rb.set_next_kinematic_position(Isometry::translation(position_x, position_y, position_z));
+    if let Some(rb) = psd.rigid_body_set.get_mut(rb_handle.into()) {
+        // Preserve the current rotation when setting new position
+        let current_iso = rb.position();
+        let next_position = Isometry::from_parts(
+            Translation::new(position_x, position_y, position_z),
+            current_iso.rotation
+        );
+        rb.set_next_kinematic_position(next_position);
+    }
+    log::warn!("Did we find rb_handle {:?} in rigid_body_set? {:?}", rb_handle, psd.rigid_body_set.contains(rb_handle.into()));
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn set_transform_rotation(rb_handle: SerializableRigidBodyHandle, rotation_x:f32, rotation_y:f32, rotation_z:f32, rotation_w:f32) {
     let psd = get_mutable_physics_solver();
-    let rb: &mut RigidBody = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
-    rb.set_next_kinematic_rotation(UnitQuaternion::new_normalize(Quaternion::new(rotation_w, rotation_x, rotation_y, rotation_z)));
+    if let Some(rb) = psd.rigid_body_set.get_mut(rb_handle.into()) {
+        rb.set_next_kinematic_rotation(UnitQuaternion::new_normalize(Quaternion::new(rotation_w, rotation_x, rotation_y, rotation_z)));
+    }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn set_linear_velocity(rb_handle: SerializableRigidBodyHandle, velocity_x:f32, velocity_y:f32, velocity_z:f32) {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
-    rb.set_linvel(vector![velocity_x, velocity_y, velocity_z], true);
+    if let Some(rb) = psd.rigid_body_set.get_mut(rb_handle.into()) {
+        rb.set_linvel(vector![velocity_x, velocity_y, velocity_z], true);
+    }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn set_angular_velocity(rb_handle: SerializableRigidBodyHandle, velocity_x:f32, velocity_y:f32, velocity_z:f32) {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
-    rb.set_angvel(vector![velocity_x, velocity_y, velocity_z], true);
+    if let Some(rb) = psd.rigid_body_set.get_mut(rb_handle.into()) {
+        rb.set_angvel(vector![velocity_x, velocity_y, velocity_z], true);
+    }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn get_linear_velocity(rb_handle: SerializableRigidBodyHandle) -> Vector3<f32> {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get(rb_handle.into()).unwrap();
-    rb.linvel().clone()
+    if let Some(rb) = psd.rigid_body_set.get(rb_handle.into()) {
+        rb.linvel().clone()
+    } else {
+        vector![0.0, 0.0, 0.0]
+    }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn get_angular_velocity(rb_handle: SerializableRigidBodyHandle) -> Vector3<f32> {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get(rb_handle.into()).unwrap();
-    rb.angvel().clone()
+    if let Some(rb) = psd.rigid_body_set.get(rb_handle.into()) {
+        rb.angvel().clone()
+    } else {
+        vector![0.0, 0.0, 0.0]
+    }
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn enable_CCD(rb_handle: SerializableRigidBodyHandle, enabled: bool) {
     let psd = get_mutable_physics_solver();
-    let rb = psd.rigid_body_set.get_mut(rb_handle.into()).unwrap();
-    rb.enable_ccd(enabled);
+    if let Some(rb) = psd.rigid_body_set.get_mut(rb_handle.into()) {
+        rb.enable_ccd(enabled);
+    }
 }
 
 // Add Force

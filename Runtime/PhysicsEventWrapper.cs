@@ -124,7 +124,16 @@ public class RapierLoop
 		RapierBindings.add_force(handle, force.x, force.y, force.z, ForceMode.Force);
 	}
 
-
+	public static void MovePosition(Rigidbody rigidbody, Vector3 position)
+	{
+		UnityEngine.Debug.Log($"rigidbodyToHandle {rigidbodyToHandle.Count}");
+		if (!rigidbodyToHandle.ContainsKey(rigidbody))
+		{
+			AddRigidbody(rigidbody);
+		}
+		RigidBodyHandle handle = rigidbodyToHandle[rigidbody];
+		RapierBindings.set_transform_position(handle, position.x, position.y, position.z);
+	}
 
 	public struct LocalRaycastHit
 	{
@@ -156,7 +165,6 @@ public class RapierLoop
 		hit = UnsafeUtility.As<LocalRaycastHit, RaycastHit>(ref localHit);
 		return true;
 	}
-
 
 	// Called in the beginning of every frame, this ensures that all colliders and rigidbodies are initialized
 	public static void Initialization()
@@ -329,26 +337,31 @@ public class RapierLoop
 
 		foreach (Rigidbody rigidbody in Object.FindObjectsByType<Rigidbody>(FindObjectsSortMode.None))
 		{
-			// Add Rapier RigidBody if it doesn't exist
-			if (!rigidbodyToHandle.ContainsKey(rigidbody))
-			{
-				Collider[] colliders = rigidbody.GetComponents<Collider>();
-				Assert.AreEqual(colliders.Length, 1, "Rigidbody must have exactly one collider for the moment");
-				ColliderHandle colliderHandle = colliderToHandle[colliders[0]];
-				Transform trs = rigidbody.transform;
-				rigidbodyToHandle[rigidbody] = RapierBindings.add_rigid_body(
-					colliderHandle,
-					RigidBodyType.Dynamic,
-					trs.position.x,
-					trs.position.y,
-					trs.position.z,
-					trs.rotation.x,
-					trs.rotation.y,
-					trs.rotation.z,
-					trs.rotation.w);
-			}
-			RapierBindings.enable_CCD(rigidbodyToHandle[rigidbody], rigidbody.collisionDetectionMode == CollisionDetectionMode.Continuous);
+			AddRigidbody(rigidbody);
 		}
+	}
+
+	private static void AddRigidbody(Rigidbody rigidbody)
+	{
+		if (!rigidbodyToHandle.ContainsKey(rigidbody))
+		{
+			Collider[] colliders = rigidbody.GetComponents<Collider>();
+			Assert.AreEqual(colliders.Length, 1, "Rigidbody must have exactly one collider for the moment");
+			ColliderHandle colliderHandle = colliderToHandle[colliders[0]];
+			Transform trs = rigidbody.transform;
+			rigidbodyToHandle[rigidbody] = RapierBindings.add_rigid_body(
+				colliderHandle,
+				rigidbody.isKinematic ? RigidBodyType.KinematicPositionBased : RigidBodyType.Dynamic,
+				trs.position.x,
+				trs.position.y,
+				trs.position.z,
+				trs.rotation.x,
+				trs.rotation.y,
+				trs.rotation.z,
+				trs.rotation.w);
+		}
+		// Set rigidbody properties
+		RapierBindings.enable_CCD(rigidbodyToHandle[rigidbody], rigidbody.collisionDetectionMode == CollisionDetectionMode.Continuous);
 
 	}
 
@@ -363,6 +376,7 @@ public class RapierLoop
 
 		unsafe
 		{
+			UnityEngine.Debug.Log($"Solving");
 			// Solve physics and get collision events
 			RawArray<CollisionEvent>* eventsPtrToArray = RapierBindings.solve();
 
@@ -424,10 +438,10 @@ public class RapierLoop
 			rigidbody.transform.SetPositionAndRotation(position.position, position.rotation);
 		}
 
-		// Update fixed rigidbodies
-		foreach ((Collider collider, RigidBodyHandle rbhandle) in fixedRigidbodies)
-		{
+		// // Update fixed rigidbodies
+		// foreach ((Collider collider, RigidBodyHandle rbhandle) in fixedRigidbodies)
+		// {
 
-		}
+		// }
 	}
 }
